@@ -112,4 +112,61 @@ void main() {
       expect(savedRecipe.imageUrl, recipe.imageUrl);
     },
   );
+  test(
+    'editing replaces only the selected recipe and survives reopening',
+    () async {
+      const original = Recipe(
+        id: 'edit',
+        title: 'Before',
+        ingredients: ['Flour'],
+        instructions: ['Mix'],
+      );
+      const other = Recipe(
+        id: 'other',
+        title: 'Other',
+        ingredients: ['Water'],
+        instructions: ['Boil'],
+      );
+      const updated = Recipe(
+        id: 'edit',
+        title: 'After',
+        ingredients: ['Milk', 'Flour'],
+        instructions: ['Whisk', 'Cook'],
+      );
+      await databaseService.saveRecipe(original);
+      await databaseService.saveRecipe(other);
+      await databaseService.saveRecipe(updated);
+      await databaseService.close();
+      expect((await databaseService.getAllRecipes()), hasLength(2));
+      expect(
+        (await databaseService.getRecipeById('edit'))!.toMap(),
+        updated.toMap(),
+      );
+      expect(
+        (await databaseService.getRecipeById('other'))!.toMap(),
+        other.toMap(),
+      );
+    },
+  );
+
+  test('deletion survives reopening and leaves other recipes intact', () async {
+    const removed = Recipe(
+      id: "delete' OR 1=1 --",
+      title: 'Removed',
+      ingredients: ['Flour'],
+      instructions: ['Mix'],
+    );
+    const kept = Recipe(
+      id: 'kept',
+      title: 'Kept',
+      ingredients: ['Water'],
+      instructions: ['Boil'],
+    );
+    await databaseService.saveRecipe(removed);
+    await databaseService.saveRecipe(kept);
+    await databaseService.deleteRecipe(removed.id);
+    await databaseService.close();
+    expect(await databaseService.getRecipeById(removed.id), isNull);
+    expect((await databaseService.getAllRecipes()).map((r) => r.id), ['kept']);
+  });
 }
