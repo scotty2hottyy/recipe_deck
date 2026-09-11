@@ -54,12 +54,20 @@ jobs:
           api-level: 30
           target: default
           arch: x86_64
-          profile: pixel_2
           cores: 2
-          ram-size: 2048M
-          heap-size: 512M
+          ram-size: 2048
+          heap-size: 512
           disk-size: 2048M
-          emulator-boot-timeout: 900
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
+          disable-linux-hw-accel: false
+          pre-emulator-launch-script: |
+            echo "Android SDK: $ANDROID_HOME"
+            adb version
+            emulator -version
+            emulator -accel-check || true
+            avdmanager list avd
+            emulator -list-avds
+            ls -l /dev/kvm || true
           script: flutter test integration_test/app_test.dart
