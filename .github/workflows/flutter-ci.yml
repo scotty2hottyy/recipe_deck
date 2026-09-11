@@ -48,6 +48,21 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Check ADB and emulator environment
+        run: |
+          echo "ANDROID_HOME=${ANDROID_HOME:-}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-}"
+          echo "ANDROID_AVD_HOME=${ANDROID_AVD_HOME:-}"
+          echo "ADB_SERVER_SOCKET=${ADB_SERVER_SOCKET:-<unset>}"
+          unset ADB_SERVER_SOCKET
+          adb version
+          adb kill-server || true
+          adb start-server
+          adb devices -l
+          ls -l /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
       - name: Run Android integration test
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -63,8 +78,12 @@ jobs:
           disable-animations: true
           disable-linux-hw-accel: false
           pre-emulator-launch-script: |
+            unset ADB_SERVER_SOCKET
             echo "Android SDK: $ANDROID_HOME"
+            echo "ANDROID_SDK_ROOT: ${ANDROID_SDK_ROOT:-}"
+            echo "ADB_SERVER_SOCKET: ${ADB_SERVER_SOCKET:-<unset>}"
             adb version
+            adb devices -l
             emulator -version
             emulator -accel-check || true
             avdmanager list avd
