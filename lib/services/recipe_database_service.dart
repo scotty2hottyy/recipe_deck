@@ -54,6 +54,11 @@ class RecipeDatabaseService {
     return rows.map(_recipeFromDatabaseMap).toList();
   }
 
+  Future<void> deleteRecipe(String id) async {
+    final db = await _getDatabase();
+    await db.delete(_recipesTable, where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<void> close() async {
     await _database?.close();
     _database = null;
