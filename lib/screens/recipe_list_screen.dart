@@ -4,6 +4,7 @@ import '../models/recipe.dart';
 import '../services/recipe_database_service.dart';
 import 'add_recipe_screen.dart';
 import 'recipe_detail_screen.dart';
+import 'recipe_url_import_screen.dart';
 
 class RecipeListScreen extends StatefulWidget {
   const RecipeListScreen({super.key, this.databaseService});
@@ -50,10 +51,26 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
     if (mounted && saved != null) _reload();
   }
 
+  Future<void> _importRecipeUrl() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => const RecipeUrlImportScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Recipe Deck')),
+      appBar: AppBar(
+        title: const Text('Recipe Deck'),
+        actions: [
+          IconButton(
+            key: const Key('openRecipeUrlImportButton'),
+            tooltip: 'Import Recipe URL',
+            onPressed: _importRecipeUrl,
+            icon: const Icon(Icons.link),
+          ),
+        ],
+      ),
       body: FutureBuilder<List<Recipe>>(
         future: _recipes,
         builder: (context, snapshot) {
@@ -101,6 +118,12 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
                       onPressed: _addRecipe,
                       icon: const Icon(Icons.add),
                       label: const Text('Add Recipe'),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _importRecipeUrl,
+                      icon: const Icon(Icons.link),
+                      label: const Text('Import from URL'),
                     ),
                   ],
                 ),
