@@ -48,48 +48,90 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Check ADB and emulator environment
+      - name: Add Android SDK tools to PATH
         run: |
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
           echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           echo "ANDROID_HOME=${ANDROID_HOME:-}"
           echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-}"
           echo "ANDROID_AVD_HOME=${ANDROID_AVD_HOME:-}"
           echo "ADB_SERVER_SOCKET=${ADB_SERVER_SOCKET:-<unset>}"
+
+      - name: Check ADB and emulator environment
+        run: |
           unset ADB_SERVER_SOCKET
           adb version
           adb kill-server || true
           adb start-server
           adb devices -l
+          emulator -version
+          emulator -accel-check || true
           ls -l /dev/kvm
           test -r /dev/kvm
           test -w /dev/kvm
 
+      - name: Install Android emulator system image
+        run: |
+          unset ADB_SERVER_SOCKET
+          yes | sdkmanager --licenses
+          yes | sdkmanager \
+            "platform-tools" \
+            "emulator" \
+            "platforms;android-30" \
+            "system-images;android-30;default;x86_64"
+
+      - name: Create Android emulator AVD
+        run: |
+          unset ADB_SERVER_SOCKET
+          echo "no" | avdmanager create avd \
+            --force \
+            --name recipe_deck_api_30 \
+            --package "system-images;android-30;default;x86_64"
+          avdmanager list avd
+          emulator -list-avds
+
+      - name: Start Android emulator
+        run: |
+          unset ADB_SERVER_SOCKET
+          adb kill-server || true
+          adb start-server
+          nohup emulator -avd recipe_deck_api_30 \
+            -no-window \
+            -noaudio \
+            -no-boot-anim \
+            -gpu swiftshader_indirect \
+            -no-snapshot \
+            > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          adb wait-for-device
+          boot_completed=""
+          for attempt in {1..60}; do
+            boot_completed="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
+            if [ "$boot_completed" = "1" ]; then
+              adb devices -l
+              adb shell settings put global window_animation_scale 0 || true
+              adb shell settings put global transition_animation_scale 0 || true
+              adb shell settings put global animator_duration_scale 0 || true
+              exit 0
+            fi
+            echo "Waiting for emulator boot... attempt $attempt/60, sys.boot_completed=${boot_completed:-<empty>}"
+            sleep 10
+          done
+          echo "Emulator failed to boot before timeout."
+          adb devices -l || true
+          cat "$RUNNER_TEMP/emulator.log" || true
+          exit 1
+
       - name: Run Android integration test
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          target: default
-          arch: x86_64
-          cores: 2
-          ram-size: 2048
-          heap-size: 512
-          disk-size: 2048M
-          emulator-boot-timeout: 600
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          disable-animations: true
-          disable-linux-hw-accel: false
-          pre-emulator-launch-script: |
-            unset ADB_SERVER_SOCKET
-            echo "Android SDK: $ANDROID_HOME"
-            echo "ANDROID_SDK_ROOT: ${ANDROID_SDK_ROOT:-}"
-            echo "ADB_SERVER_SOCKET: ${ADB_SERVER_SOCKET:-<unset>}"
-            adb version
-            adb devices -l
-            emulator -version
-            emulator -accel-check || true
-            avdmanager list avd
-            emulator -list-avds
-            ls -l /dev/kvm || true
-          script: flutter test integration_test/app_test.dart
+        run: |
+          unset ADB_SERVER_SOCKET
+          flutter test integration_test/app_test.dart -d emulator-5554
+
+      - name: Shut down Android emulator
+        if: always()
+        run: |
+          unset ADB_SERVER_SOCKET
+          adb devices -l || true
+          adb -s emulator-5554 emu kill || true
+          cat "$RUNNER_TEMP/emulator.log" || true
