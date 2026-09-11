@@ -57,6 +57,12 @@ Future<void> saveForm(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> openUrlImport(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('openRecipeUrlImportButton')));
+  await tester.pumpAndSettle();
+  expect(find.text('Import Recipe URL'), findsOneWidget);
+}
+
 void main() {
   testWidgets('manual entry validates, trims lines, saves and opens detail', (
     tester,
@@ -212,5 +218,66 @@ void main() {
       find.text('Could not delete the recipe. Please try again.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('recipe URL import accepts typed URL text', (tester) async {
+    final database = MemoryRecipeDatabase();
+    await tester.pumpWidget(RecipeDeckApp(databaseService: database));
+    await tester.pumpAndSettle();
+    await openUrlImport(tester);
+
+    const url = 'https://example.com/recipes/chili';
+    await tester.enterText(find.byKey(const Key('recipeUrlField')), url);
+
+    expect(find.text(url), findsOneWidget);
+  });
+
+  testWidgets('recipe URL import rejects empty input', (tester) async {
+    final database = MemoryRecipeDatabase();
+    await tester.pumpWidget(RecipeDeckApp(databaseService: database));
+    await tester.pumpAndSettle();
+    await openUrlImport(tester);
+
+    await tester.tap(find.byKey(const Key('importRecipeUrlButton')));
+    await tester.pump();
+
+    expect(find.text('Enter a recipe URL.'), findsOneWidget);
+    expect(find.text('Ready for import'), findsNothing);
+  });
+
+  testWidgets('recipe URL import rejects invalid URLs', (tester) async {
+    final database = MemoryRecipeDatabase();
+    await tester.pumpWidget(RecipeDeckApp(databaseService: database));
+    await tester.pumpAndSettle();
+    await openUrlImport(tester);
+
+    await tester.enterText(
+      find.byKey(const Key('recipeUrlField')),
+      'not a url',
+    );
+    await tester.tap(find.byKey(const Key('importRecipeUrlButton')));
+    await tester.pump();
+
+    expect(find.text('Enter a valid http or https URL.'), findsOneWidget);
+    expect(find.text('Ready for import'), findsNothing);
+  });
+
+  testWidgets('recipe URL import submits valid URL to placeholder state', (
+    tester,
+  ) async {
+    final database = MemoryRecipeDatabase();
+    await tester.pumpWidget(RecipeDeckApp(databaseService: database));
+    await tester.pumpAndSettle();
+    await openUrlImport(tester);
+
+    const url = 'https://example.com/recipes/chili';
+    await tester.enterText(find.byKey(const Key('recipeUrlField')), ' $url ');
+    await tester.tap(find.byKey(const Key('importRecipeUrlButton')));
+    await tester.pump();
+
+    expect(find.text('Ready for import'), findsOneWidget);
+    expect(find.text(url), findsOneWidget);
+    expect(find.text('Recipe URL ready for import.'), findsOneWidget);
+    expect(database.recipes, isEmpty);
   });
 }

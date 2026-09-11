@@ -44,22 +44,31 @@ This history was reconstructed from Git commits and the earlier versions of this
 - All 14 tests passed in Android Studio, the Android build succeeded, and the user demoed and approved it.
 - Issues #4–#8 were closed as completed on GitHub after publication. At the end of that operation, this feature branch had not been merged into main. Confirm current GitHub state before starting new work; issue closure alone does not imply a merge.
 
+### #9 — Recipe URL input UI (completed in this session)
+- Implementation branch: `issue-9-url-input`.
+- Added a URL import screen reachable from the Recipe Deck app bar and from the empty-state screen.
+- Added a recipe URL text field and import button.
+- Added validation for empty input, malformed input, and non-http/non-https schemes.
+- Valid http/https URLs are trimmed and submitted into a local placeholder state that displays "Ready for import" and the submitted URL. No webpage fetching, parsing, recipe creation, or database write is performed yet.
+- Added widget coverage for entering a URL, empty URL rejection, invalid URL rejection, and valid URL placeholder submission.
+
 ## Latest implementation and workflow context
-- Issues implemented in order: #4 saved recipe list, #5 manual entry, #6 editing, #7 deletion, #8 detail card.
-- Branch: `issues-4-8-recipe-management`, based on main commit `2399a07` (issue #3 merged).
-- Working checkout: `/Users/willi/Documents/Codex/2026-09-10/hey/work/recipe_deck`.
-- User reviewed the change breakdown, successfully demoed the Android build, and approved committing this work and closing issues #4–#8.
-- Implementation commit `f155939` is published; issues #4–#8 were verified closed as completed. The user approved this documentation-only history update for commit and publication to the same working branch; the user will open the pull request and notify the repository owner.
-- User requires a thorough change breakdown and a chance to demo before approving any commit. Use GitHub identity `williamfaulk04-blip` for approved commits; its GitHub-provided noreply address is verified. Include this handoff in every commit.
-- User requested Android Studio's Flutter plugin and selected the Android emulator for the demo. README revision is deferred until the user ends the session/reminds us.
+- Issues implemented in order: #4 saved recipe list, #5 manual entry, #6 editing, #7 deletion, #8 detail card, #9 URL input UI.
+- Branch: `issue-9-url-input`.
+- Working checkout: `/home/scott/Classes/CSC4330/recipe_deck`.
+- Current app state: manual recipe management remains backed by the existing SQLite service. URL import now has a UI entry point and validation-only placeholder submission, but it does not fetch, parse, preview, save, or mutate recipes.
+- User requires a thorough change breakdown and a chance to demo before approving any commit. Do not merge to main.
+- Include this handoff in every commit.
 
 ## What changed
+- `lib/screens/recipe_url_import_screen.dart`: new URL import form with a recipe URL field, import button, http/https validation, empty/invalid validation messages, and local placeholder "Ready for import" state.
 - `lib/screens/recipe_list_screen.dart`: reads saved recipes from SQLite, displays ingredient/step counts, handles loading/empty/load-error states, passes full Recipe objects through navigation, and reloads after add/edit/delete.
+- `lib/screens/recipe_list_screen.dart`: adds URL import navigation from the app bar and the empty-state screen.
 - `lib/screens/add_recipe_screen.dart`: shared add/edit form with title, multiline ingredients, and multiline instructions. Required fields reject blank/whitespace-only values. Trims lines and skips blank lines, preserves order, prevents duplicate saves while pending, and retains input when saving fails. Editing keeps the existing id and source/image metadata.
 - `lib/screens/recipe_detail_screen.dart`: scrollable recipe card with title, ingredients, numbered instructions, optional source text, edit action, and confirmation before deletion. Updates immediately after editing; returns to refreshed list after deleting.
 - `lib/services/recipe_database_service.dart`: adds parameterized deletion by id. Uses the existing save/upsert behavior for edits; no database migration or dependency change.
 - `lib/main.dart`: accepts an optional database service for widget testing; production still uses the existing SQLite service.
-- `test/widget_test.dart`: replaces placeholder navigation expectations with manual-entry/validation, edit/detail/list refresh, delete/cancel, and database-failure recovery tests.
+- `test/widget_test.dart`: covers manual-entry/validation, edit/detail/list refresh, delete/cancel, database-failure recovery, URL entry, empty URL rejection, invalid URL rejection, and valid URL placeholder submission.
 - `test/recipe_database_service_test.dart`: verifies edits and deletes survive database reopening and leave other recipes intact.
 
 ## Follow-up fixes
@@ -68,16 +77,15 @@ This history was reconstructed from Git commits and the earlier versions of this
 - Form tests scroll the outer list to the Save button before tapping.
 
 ## Validation
-- `flutter analyze`: passed, no issues.
-- Dart formatting and `git diff --check`: passed.
-- Shell `flutter test`: blocked before execution by a host runtime SIGABRT. Flutter's sandboxed CPU detection selects the x64 tester on this ARM Mac because `sysctl hw.optional.arm64` is denied. This is not a passing test run.
-- Android Studio Flutter plugin rebuilt and installed `build/app/outputs/flutter-apk/app-debug.apk` after the follow-up fixes on Pixel 10 Pro (`emulator-5554`). The user subsequently confirmed the Android build looks great after demoing it. The refreshed debug APK is also in the session outputs folder.
-- Android Studio Flutter plugin: all 14 tests passed (5 widget tests plus 9 model/database tests), verified after the follow-up fixes.
-- User demo completed and commit/issue-closure approval received.
-- Toolchain: Android Studio bundled Java 25.0.2 with Gradle 9.3.1. Native-access warning is a build-tool maintenance concern for future Java upgrades; the current Android build succeeds.
+- Latest Issue #9 validation:
+  - `flutter analyze`: passed, no issues.
+  - `flutter test`: passed, all 18 tests.
+  - `git diff --check`: passed.
+- Previous #4–#8 validation passed in Android Studio with all 14 tests passing at that time.
 
 ## Current limitations / next work
 - Runtime persistence uses the existing sqflite Android/iOS/macOS implementation; Chrome persistence is not configured. Use the Android emulator for this demo.
 - No hard-coded sample recipes are inserted. A fresh database displays an empty state.
-- URL import starts at #9 and has not been implemented. Search/filtering and broader polish remain future issues.
-- Next objective is #9: Add recipe URL input. Preserve the manual recipe workflow and existing SQLite service.
+- URL import does not fetch webpage content yet. It only captures and validates a URL, then stores the submitted URL in transient screen state.
+- Issue #10 should connect the valid submitted URL from `RecipeUrlImportScreen` to the actual webpage-fetching/parsing flow, then decide how parsed recipes are previewed and saved through the existing `RecipeDatabaseService`.
+- Search/filtering and broader polish remain future issues.
