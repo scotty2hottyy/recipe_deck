@@ -15,10 +15,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -48,11 +48,48 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Check ADB and emulator environment
+        run: |
+          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
+          echo "ANDROID_HOME=${ANDROID_HOME:-}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-}"
+          echo "ANDROID_AVD_HOME=${ANDROID_AVD_HOME:-}"
+          echo "ADB_SERVER_SOCKET=${ADB_SERVER_SOCKET:-<unset>}"
+          unset ADB_SERVER_SOCKET
+          adb version
+          adb kill-server || true
+          adb start-server
+          adb devices -l
+          ls -l /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
       - name: Run Android integration test
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
-          target: google_apis
+          api-level: 30
+          target: default
           arch: x86_64
-          profile: pixel_6
+          cores: 2
+          ram-size: 2048
+          heap-size: 512
+          disk-size: 2048M
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          disable-linux-hw-accel: false
+          pre-emulator-launch-script: |
+            unset ADB_SERVER_SOCKET
+            echo "Android SDK: $ANDROID_HOME"
+            echo "ANDROID_SDK_ROOT: ${ANDROID_SDK_ROOT:-}"
+            echo "ADB_SERVER_SOCKET: ${ADB_SERVER_SOCKET:-<unset>}"
+            adb version
+            adb devices -l
+            emulator -version
+            emulator -accel-check || true
+            avdmanager list avd
+            emulator -list-avds
+            ls -l /dev/kvm || true
           script: flutter test integration_test/app_test.dart
