@@ -34,6 +34,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ready for import'), findsOneWidget);
-    expect(find.text(url), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is SelectableText && widget.data == url,
+      ),
+      findsOneWidget,
+    );
   });
 }

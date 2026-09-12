@@ -42,6 +42,30 @@ jobs:
       - name: Build Android APK
         run: flutter build apk
 
+      - name: Free disk space for Android emulator
+        run: |
+          echo "Disk before cleanup:"
+          df -h /
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /usr/local/lib/android/sdk/ndk || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/.ghcup || true
+          sudo rm -rf /usr/local/share/boost || true
+          if [ -d /opt/hostedtoolcache ]; then
+            ls -la /opt/hostedtoolcache || true
+            sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          fi
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          echo "Disk after cleanup:"
+          df -h /
+          available_mb="$(df -Pm / | awk 'NR==2 { print $4 }')"
+          if [ "$available_mb" -lt 9000 ]; then
+            echo "Expected at least 9000 MB available on / for Android emulator; found ${available_mb} MB."
+            exit 1
+          fi
+          echo "Disk space check passed: ${available_mb} MB available on /."
+
       - name: Enable KVM for Android emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -100,19 +124,6 @@ jobs:
             --force \
             --name recipe_deck_api_30 \
             --package "system-images;android-30;default;x86_64"
-          AVD_DIR="$HOME/.android/avd/recipe_deck_api_30.avd"
-          AVD_CONFIG="$AVD_DIR/config.ini"
-          grep "disk.dataPartition.size" "$AVD_CONFIG" || true
-          if grep -q "^disk\\.dataPartition\\.size=" "$AVD_CONFIG"; then
-            sed -i "s/^disk\\.dataPartition\\.size=.*/disk.dataPartition.size=2047m/" "$AVD_CONFIG"
-          else
-            echo "disk.dataPartition.size=2047m" >> "$AVD_CONFIG"
-          fi
-          rm -f "$AVD_DIR"/userdata*.img
-          rm -f "$AVD_DIR"/cache*.img
-          grep "disk.dataPartition.size" "$AVD_CONFIG"
-          du -sh "$AVD_DIR"
-          df -h /
           avdmanager list avd
           emulator -list-avds
 
@@ -127,7 +138,6 @@ jobs:
             -noaudio \
             -no-boot-anim \
             -gpu swiftshader_indirect \
-            -partition-size 2047 \
             -no-cache \
             -no-snapshot \
             > "$RUNNER_TEMP/emulator.log" 2>&1 &
