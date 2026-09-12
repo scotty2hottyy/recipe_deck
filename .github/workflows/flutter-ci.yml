@@ -115,15 +115,57 @@ jobs:
             -gpu swiftshader_indirect \
             -no-snapshot \
             > "$RUNNER_TEMP/emulator.log" 2>&1 &
-          adb wait-for-device
+          EMULATOR_PID=$!
+          echo "Started Android emulator process with PID $EMULATOR_PID."
+          sleep 5
+          if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
+            echo "Emulator process exited before registering with ADB."
+            cat "$RUNNER_TEMP/emulator.log" || true
+            exit 1
+          fi
+
+          emulator_serial=""
+          for attempt in {1..24}; do
+            if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
+              echo "Emulator process exited while waiting for ADB registration."
+              cat "$RUNNER_TEMP/emulator.log" || true
+              exit 1
+            fi
+
+            adb_output="$(adb devices 2>&1 || true)"
+            emulator_serial="$(printf '%s\n' "$adb_output" | awk '/^emulator-[0-9]+[[:space:]]+device([[:space:]]|$)/ { print $1; exit }')"
+            if [ -n "$emulator_serial" ]; then
+              echo "Emulator registered with ADB as $emulator_serial."
+              adb devices -l
+              break
+            fi
+
+            echo "Waiting for emulator to register with ADB... attempt $attempt/24"
+            printf '%s\n' "$adb_output"
+            sleep 5
+          done
+
+          if [ -z "$emulator_serial" ]; then
+            echo "Emulator did not register with ADB before timeout."
+            adb devices -l || true
+            cat "$RUNNER_TEMP/emulator.log" || true
+            exit 1
+          fi
+
           boot_completed=""
           for attempt in {1..60}; do
-            boot_completed="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
+            if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
+              echo "Emulator process exited while waiting for Android boot."
+              cat "$RUNNER_TEMP/emulator.log" || true
+              exit 1
+            fi
+
+            boot_completed="$(adb -s "$emulator_serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
             if [ "$boot_completed" = "1" ]; then
               adb devices -l
-              adb shell settings put global window_animation_scale 0 || true
-              adb shell settings put global transition_animation_scale 0 || true
-              adb shell settings put global animator_duration_scale 0 || true
+              adb -s "$emulator_serial" shell settings put global window_animation_scale 0 || true
+              adb -s "$emulator_serial" shell settings put global transition_animation_scale 0 || true
+              adb -s "$emulator_serial" shell settings put global animator_duration_scale 0 || true
               exit 0
             fi
             echo "Waiting for emulator boot... attempt $attempt/60, sys.boot_completed=${boot_completed:-<empty>}"
