@@ -50,7 +50,6 @@ jobs:
 
       - name: Add Android SDK tools to PATH
         run: |
-          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
           echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
           echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
@@ -66,8 +65,6 @@ jobs:
           adb kill-server || true
           adb start-server
           adb devices -l
-          emulator -version
-          emulator -accel-check || true
           ls -l /dev/kvm
           test -r /dev/kvm
           test -w /dev/kvm
@@ -81,6 +78,15 @@ jobs:
             "emulator" \
             "platforms;android-30" \
             "system-images;android-30;default;x86_64"
+
+      - name: Check installed Android emulator tools
+        run: |
+          unset ADB_SERVER_SOCKET
+          adb version
+          emulator -version
+          emulator -accel-check
+          adb devices -l
+          ls -l /dev/kvm
 
       - name: Create Android emulator AVD
         run: |
