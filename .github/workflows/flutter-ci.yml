@@ -100,6 +100,19 @@ jobs:
             --force \
             --name recipe_deck_api_30 \
             --package "system-images;android-30;default;x86_64"
+          AVD_DIR="$HOME/.android/avd/recipe_deck_api_30.avd"
+          AVD_CONFIG="$AVD_DIR/config.ini"
+          grep "disk.dataPartition.size" "$AVD_CONFIG" || true
+          if grep -q "^disk\\.dataPartition\\.size=" "$AVD_CONFIG"; then
+            sed -i "s/^disk\\.dataPartition\\.size=.*/disk.dataPartition.size=2047m/" "$AVD_CONFIG"
+          else
+            echo "disk.dataPartition.size=2047m" >> "$AVD_CONFIG"
+          fi
+          rm -f "$AVD_DIR"/userdata*.img
+          rm -f "$AVD_DIR"/cache*.img
+          grep "disk.dataPartition.size" "$AVD_CONFIG"
+          du -sh "$AVD_DIR"
+          df -h /
           avdmanager list avd
           emulator -list-avds
 
@@ -114,7 +127,7 @@ jobs:
             -noaudio \
             -no-boot-anim \
             -gpu swiftshader_indirect \
-            -partition-size 2048 \
+            -partition-size 2047 \
             -no-cache \
             -no-snapshot \
             > "$RUNNER_TEMP/emulator.log" 2>&1 &
