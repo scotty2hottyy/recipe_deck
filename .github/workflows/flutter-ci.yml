@@ -79,6 +79,11 @@ jobs:
             "platforms;android-30" \
             "system-images;android-30;default;x86_64"
 
+      - name: Install Android emulator system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpulse0
+
       - name: Check installed Android emulator tools
         run: |
           unset ADB_SERVER_SOCKET
