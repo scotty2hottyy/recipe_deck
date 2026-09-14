@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:recipe_deck/main.dart';
 import 'package:recipe_deck/models/recipe.dart';
 import 'package:recipe_deck/services/recipe_database_service.dart';
+import 'package:recipe_deck/services/recipe_page_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MemoryRecipeDatabase extends RecipeDatabaseService {
@@ -45,7 +47,7 @@ Future<void> saveForm(WidgetTester tester) async {
   final save = find.byKey(const Key('saveRecipeButton'));
   await tester.scrollUntilVisible(
     save,
-    250,
+    500,
     scrollable: find
         .descendant(
           of: find.byType(ListView),
@@ -53,6 +55,8 @@ Future<void> saveForm(WidgetTester tester) async {
         )
         .first,
   );
+  await tester.ensureVisible(save);
+  await tester.pumpAndSettle();
   await tester.tap(save);
   await tester.pumpAndSettle();
 }
@@ -232,6 +236,60 @@ void main() {
     expect(find.text(url), findsOneWidget);
   });
 
+  testWidgets('add recipe imports a URL into the form before saving', (
+    tester,
+  ) async {
+    const pageText = '''
+      <script type="application/ld+json">
+        {
+          "@type": "Recipe",
+          "name": "Imported Chili",
+          "recipeIngredient": ["Beans", "Tomatoes"],
+          "recipeInstructions": ["Mix ingredients", "Simmer"]
+        }
+      </script>
+    ''';
+    final database = MemoryRecipeDatabase();
+    await tester.pumpWidget(
+      RecipeDeckApp(
+        databaseService: database,
+        recipePageService: RecipePageService(
+          request: (_) async => http.Response(pageText, 200),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('addRecipeButton')));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('importRecipeOnAddScreenButton')),
+      250,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.tap(find.byKey(const Key('importRecipeOnAddScreenButton')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('recipeUrlField')),
+      'https://example.com/recipes/chili',
+    );
+    await tester.tap(find.byKey(const Key('importRecipeUrlButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('useImportedRecipeButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Imported Chili'), findsOneWidget);
+    expect(find.text('Beans\nTomatoes'), findsOneWidget);
+    expect(find.text('Mix ingredients\nSimmer'), findsOneWidget);
+
+    expect(database.recipes, isEmpty);
+  });
+
   testWidgets('recipe URL import rejects empty input', (tester) async {
     final database = MemoryRecipeDatabase();
     await tester.pumpWidget(RecipeDeckApp(databaseService: database));
@@ -262,22 +320,58 @@ void main() {
     expect(find.text('Ready for import'), findsNothing);
   });
 
-  testWidgets('recipe URL import submits valid URL to placeholder state', (
-    tester,
-  ) async {
+  testWidgets('recipe URL import retrieves a valid URL page', (tester) async {
     final database = MemoryRecipeDatabase();
-    await tester.pumpWidget(RecipeDeckApp(databaseService: database));
+    await tester.pumpWidget(
+      RecipeDeckApp(
+        databaseService: database,
+        recipePageService: RecipePageService(
+          request: (_) async => http.Response('<html>recipe page</html>', 200),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     await openUrlImport(tester);
 
     const url = 'https://example.com/recipes/chili';
     await tester.enterText(find.byKey(const Key('recipeUrlField')), ' $url ');
     await tester.tap(find.byKey(const Key('importRecipeUrlButton')));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.text('Ready for import'), findsOneWidget);
     expect(find.text(url), findsOneWidget);
-    expect(find.text('Recipe URL ready for import.'), findsOneWidget);
+    expect(find.text('Recipe page retrieved successfully.'), findsOneWidget);
+    expect(
+      find.text('The page was retrieved, but no structured recipe was found.'),
+      findsOneWidget,
+    );
     expect(database.recipes, isEmpty);
+  });
+
+  testWidgets('recipe URL import shows a network error without crashing', (
+    tester,
+  ) async {
+    final database = MemoryRecipeDatabase();
+    await tester.pumpWidget(
+      RecipeDeckApp(
+        databaseService: database,
+        recipePageService: RecipePageService(
+          request: (_) async => throw Exception('offline'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await openUrlImport(tester);
+
+    await tester.enterText(
+      find.byKey(const Key('recipeUrlField')),
+      'https://example.com/recipes/chili',
+    );
+    await tester.tap(find.byKey(const Key('importRecipeUrlButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('recipeImportError')), findsOneWidget);
+    expect(find.textContaining('could not be reached'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

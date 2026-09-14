@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../models/recipe.dart';
 import '../services/recipe_database_service.dart';
+import '../services/recipe_page_service.dart';
 import 'add_recipe_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'recipe_url_import_screen.dart';
 
 class RecipeListScreen extends StatefulWidget {
-  const RecipeListScreen({super.key, this.databaseService});
+  const RecipeListScreen({
+    super.key,
+    this.databaseService,
+    this.recipePageService,
+  });
 
   final RecipeDatabaseService? databaseService;
+  final RecipePageService? recipePageService;
 
   @override
   State<RecipeListScreen> createState() => _RecipeListScreenState();
@@ -45,7 +51,10 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
   Future<void> _addRecipe() async {
     final saved = await Navigator.of(context).push<Recipe>(
       MaterialPageRoute(
-        builder: (_) => AddRecipeScreen(databaseService: _database),
+        builder: (_) => AddRecipeScreen(
+          databaseService: _database,
+          recipePageService: widget.recipePageService,
+        ),
       ),
     );
     if (mounted && saved != null) _reload();
@@ -53,7 +62,10 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
 
   Future<void> _importRecipeUrl() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => const RecipeUrlImportScreen()),
+      MaterialPageRoute(
+        builder: (_) =>
+            RecipeUrlImportScreen(pageService: widget.recipePageService),
+      ),
     );
   }
 
