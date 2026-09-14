@@ -1,7 +1,17 @@
 # AI Handoff
 
 ## Project purpose
-Recipe Deck is a Flutter app for keeping recipes locally as clean recipe cards. The intended URL-import workflow will let a user paste a recipe webpage URL, extract the recipe, and save it locally. Manual recipe management is implemented; URL import is still future work.
+Recipe Deck is a Flutter app for keeping recipes locally as clean recipe cards. Manual recipe management and recipe URL import are implemented.
+
+## Latest work — recipe URL import
+- Branch: `feature/recipe-url-import`.
+- Added `http` and `html` dependencies.
+- Added `RecipePageService` to download webpage HTML with timeout and network-error handling.
+- Added `RecipePageParser` to read Schema.org JSON-LD recipe data from the downloaded HTML.
+- Added URL import to the Add Recipe screen. The user can retrieve a page, review the parsed recipe, place it into the editable form, and save using the normal Save Recipe button.
+- The import flow does not automatically save a recipe. It returns the parsed recipe to the Add Recipe form first.
+- Added focused service, widget, and integration coverage for successful retrieval, parser handoff, and network failures.
+- Latest validation: `flutter test` passed with 23 tests; `flutter analyze` passed with no issues.
 
 ## Cumulative completion history
 This history was reconstructed from Git commits and the earlier versions of this handoff. Historical placeholders below describe earlier milestones, not the current UI. Keep this cumulative history when updating the latest-session notes.
@@ -44,12 +54,12 @@ This history was reconstructed from Git commits and the earlier versions of this
 - All 14 tests passed in Android Studio, the Android build succeeded, and the user demoed and approved it.
 - Issues #4–#8 were closed as completed on GitHub after publication. At the end of that operation, this feature branch had not been merged into main. Confirm current GitHub state before starting new work; issue closure alone does not imply a merge.
 
-### #9 — Recipe URL input UI (completed in this session)
+### #9 — Recipe URL input UI (completed before the latest URL retrieval work)
 - Implementation branch: `issue-9-url-input`.
 - Added a URL import screen reachable from the Recipe Deck app bar and from the empty-state screen.
 - Added a recipe URL text field and import button.
 - Added validation for empty input, malformed input, and non-http/non-https schemes.
-- Valid http/https URLs are trimmed and submitted into a local placeholder state that displays "Ready for import" and the submitted URL. No webpage fetching, parsing, recipe creation, or database write is performed yet.
+- The original placeholder flow was extended by the latest URL retrieval work described above.
 - Added widget coverage for entering a URL, empty URL rejection, invalid URL rejection, and valid URL placeholder submission.
 
 ### GitHub Actions CI and Android integration test (completed in this session)
@@ -110,7 +120,7 @@ This history was reconstructed from Git commits and the earlier versions of this
 ## Current limitations / next work
 - Runtime persistence uses the existing sqflite Android/iOS/macOS implementation; Chrome persistence is not configured. Use the Android emulator for this demo.
 - No hard-coded sample recipes are inserted. A fresh database displays an empty state.
-- URL import does not fetch webpage content yet. It only captures and validates a URL, then stores the submitted URL in transient screen state.
-- Issue #10 should connect the valid submitted URL from `RecipeUrlImportScreen` to the actual webpage-fetching/parsing flow, then decide how parsed recipes are previewed and saved through the existing `RecipeDatabaseService`.
+- URL parsing depends on recipe websites exposing Schema.org JSON-LD data. Pages without that structured data are retrieved but may not produce a Recipe object.
+- Imported recipes are reviewed in the Add Recipe form and require the user to press Save Recipe before being written to the database.
 - After pushing this branch, open or update a pull request targeting `main` to trigger the new CI workflow on GitHub.
 - Search/filtering and broader polish remain future issues.
