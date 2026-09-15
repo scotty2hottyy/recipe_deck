@@ -174,3 +174,12 @@ This history was reconstructed from Git commits and the earlier versions of this
   - `flutter build web --release --base-href /recipe_deck/`
   - `git diff --check`
 - Next step: push this branch, enable GitHub Pages with GitHub Actions, and test the public deployment URL.
+
+### GitHub Pages deployment verified
+- Public URL: https://scotty2hottyy.github.io/recipe_deck/
+- GitHub Pages deployment completed successfully.
+- Manual browser testing confirmed:
+  - Recipe Deck loads correctly.
+  - Manual recipes can be created and saved.
+  - Saved recipes persist after browser refresh.
+- URL importing may be blocked on the web by third-party recipe sites that do not permit CORS requests; Android/native behavior is unaffected.
