@@ -72,7 +72,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     final recipe = Recipe(
       id:
           original?.id ??
-          '${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}',
+          '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1000000000)}',
       title: _title.text.trim(),
       ingredients: _lines(_ingredients.text),
       instructions: _lines(_instructions.text),
