@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../models/recipe.dart';
+import '../services/recipe_page_service.dart';
+
 class RecipeUrlImportScreen extends StatefulWidget {
-  const RecipeUrlImportScreen({super.key});
+  const RecipeUrlImportScreen({super.key, this.pageService, this.parser});
+
+  final RecipePageService? pageService;
+  final RecipePageParser? parser;
 
   @override
   State<RecipeUrlImportScreen> createState() => _RecipeUrlImportScreenState();
@@ -10,7 +16,19 @@ class RecipeUrlImportScreen extends StatefulWidget {
 class _RecipeUrlImportScreenState extends State<RecipeUrlImportScreen> {
   final _formKey = GlobalKey<FormState>();
   final _url = TextEditingController();
+  late final RecipePageService _pageService;
+  late final RecipePageParser _parser;
   String? _submittedUrl;
+  Recipe? _parsedRecipe;
+  String? _errorMessage;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageService = widget.pageService ?? RecipePageService();
+    _parser = widget.parser ?? RecipePageParser();
+  }
 
   @override
   void dispose() {
@@ -33,15 +51,49 @@ class _RecipeUrlImportScreenState extends State<RecipeUrlImportScreen> {
     return null;
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     final trimmed = _url.text.trim();
+    final uri = Uri.parse(trimmed);
     FocusScope.of(context).unfocus();
-    setState(() => _submittedUrl = trimmed);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Recipe URL ready for import.')),
-    );
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _submittedUrl = null;
+      _parsedRecipe = null;
+    });
+
+    try {
+      // First we download the page. The returned text is the complete HTML
+      // document, not just the URL, so the next step has real page data.
+      final pageText = await _pageService.fetch(uri);
+
+      // This is the handoff from networking to parsing. Keeping this line
+      // separate makes it clear that the parser receives the downloaded page.
+      final recipe = _parser.parse(pageText, sourceUrl: trimmed);
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _submittedUrl = trimmed;
+        _parsedRecipe = recipe;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recipe page retrieved successfully.')),
+      );
+    } on RecipePageFetchException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error.message;
+      });
+    } on Object {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Something went wrong while importing the recipe.';
+      });
+    }
   }
 
   @override
@@ -63,7 +115,7 @@ class _RecipeUrlImportScreenState extends State<RecipeUrlImportScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Paste the recipe page URL. Fetching and parsing will be connected next.',
+                  'Paste the recipe page URL to retrieve and read the recipe.',
                 ),
                 const SizedBox(height: 24),
                 TextFormField(
@@ -83,10 +135,26 @@ class _RecipeUrlImportScreenState extends State<RecipeUrlImportScreen> {
                 const SizedBox(height: 20),
                 FilledButton.icon(
                   key: const Key('importRecipeUrlButton'),
-                  onPressed: _submit,
-                  icon: const Icon(Icons.cloud_download_outlined),
-                  label: const Text('Import Recipe'),
+                  onPressed: _isLoading ? null : _submit,
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.cloud_download_outlined),
+                  label: Text(
+                    _isLoading ? 'Retrieving page...' : 'Import Recipe',
+                  ),
                 ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 20),
+                  Text(
+                    _errorMessage!,
+                    key: const Key('recipeImportError'),
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                ],
                 if (_submittedUrl != null) ...[
                   const SizedBox(height: 24),
                   Card(
@@ -110,6 +178,22 @@ class _RecipeUrlImportScreenState extends State<RecipeUrlImportScreen> {
                           ),
                           const SizedBox(height: 12),
                           SelectableText(_submittedUrl!),
+                          const SizedBox(height: 12),
+                          Text(
+                            _parsedRecipe == null
+                                ? 'The page was retrieved, but no structured recipe was found.'
+                                : 'Found recipe: ${_parsedRecipe!.title}',
+                          ),
+                          if (_parsedRecipe != null) ...[
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              key: const Key('useImportedRecipeButton'),
+                              onPressed: () =>
+                                  Navigator.of(context).pop(_parsedRecipe),
+                              icon: const Icon(Icons.check),
+                              label: const Text('Use This Recipe'),
+                            ),
+                          ],
                         ],
                       ),
                     ),

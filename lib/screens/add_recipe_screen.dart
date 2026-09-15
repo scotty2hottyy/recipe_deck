@@ -4,16 +4,20 @@ import 'package:flutter/material.dart';
 
 import '../models/recipe.dart';
 import '../services/recipe_database_service.dart';
+import '../services/recipe_page_service.dart';
+import 'recipe_url_import_screen.dart';
 
 /// Shared form for manual entry and editing an existing recipe.
 class AddRecipeScreen extends StatefulWidget {
   const AddRecipeScreen({
     super.key,
     required this.databaseService,
+    this.recipePageService,
     this.recipe,
   });
 
   final RecipeDatabaseService databaseService;
+  final RecipePageService? recipePageService;
   final Recipe? recipe;
 
   @override
@@ -25,6 +29,8 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   late final TextEditingController _title;
   late final TextEditingController _ingredients;
   late final TextEditingController _instructions;
+  String? _sourceUrl;
+  String? _imageUrl;
   bool _saving = false;
   String? _error;
 
@@ -38,6 +44,8 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     _instructions = TextEditingController(
       text: widget.recipe?.instructions.join('\n') ?? '',
     );
+    _sourceUrl = widget.recipe?.sourceUrl;
+    _imageUrl = widget.recipe?.imageUrl;
   }
 
   @override
@@ -68,8 +76,8 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       title: _title.text.trim(),
       ingredients: _lines(_ingredients.text),
       instructions: _lines(_instructions.text),
-      sourceUrl: original?.sourceUrl,
-      imageUrl: original?.imageUrl,
+      sourceUrl: _sourceUrl ?? original?.sourceUrl,
+      imageUrl: _imageUrl ?? original?.imageUrl,
     );
     try {
       await widget.databaseService.saveRecipe(recipe);
@@ -82,6 +90,26 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         });
       }
     }
+  }
+
+  Future<void> _importFromUrl() async {
+    if (_saving) return;
+    final recipe = await Navigator.of(context).push<Recipe>(
+      MaterialPageRoute(
+        builder: (_) =>
+            RecipeUrlImportScreen(pageService: widget.recipePageService),
+      ),
+    );
+    if (!mounted || recipe == null) return;
+
+    setState(() {
+      _title.text = recipe.title;
+      _ingredients.text = recipe.ingredients.join('\n');
+      _instructions.text = recipe.instructions.join('\n');
+      _sourceUrl = recipe.sourceUrl;
+      _imageUrl = recipe.imageUrl;
+      _error = null;
+    });
   }
 
   @override
@@ -170,6 +198,13 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                     ),
                   ],
                   const SizedBox(height: 24),
+                  OutlinedButton.icon(
+                    key: const Key('importRecipeOnAddScreenButton'),
+                    onPressed: _saving ? null : _importFromUrl,
+                    icon: const Icon(Icons.cloud_download_outlined),
+                    label: const Text('Import from URL'),
+                  ),
+                  const SizedBox(height: 12),
                   FilledButton.icon(
                     key: const Key('saveRecipeButton'),
                     onPressed: _saving ? null : _save,
