@@ -155,3 +155,31 @@ This history was reconstructed from Git commits and the earlier versions of this
 - Next likely work should reconcile the existing fetch/import flow with the Issue #11 parser before further URL-import development.
 - After pushing this branch, open or update a pull request targeting `main` to trigger the new CI workflow on GitHub.
 - Search/filtering and broader polish remain future issues.
+
+## Issue #31 — GitHub Pages web deployment
+- Branch: `issue-31-github-pages`.
+- Flutter web now builds successfully with `--base-href /recipe_deck/`.
+- Fixed web startup by avoiding unsupported `Platform` access when `kIsWeb` is true.
+- Added `sqflite_common_ffi_web` so browser builds can use SQLite through IndexedDB.
+- Added the required web SQLite runtime files:
+  - `web/sqlite3.wasm`
+  - `web/sqflite_sw.js`
+- Browser persistence was manually verified by creating and saving a recipe.
+- Changed recipe ID random generation to use a web-safe integer range.
+- Added `.github/workflows/deploy-pages.yml` to build, test, and deploy Flutter Web to GitHub Pages.
+- URL import remains limited in web browsers because many recipe sites block cross-origin requests through CORS. Native Android import is not affected.
+- Local validation passed:
+  - `flutter analyze`
+  - `flutter test` — 34 tests
+  - `flutter build web --release --base-href /recipe_deck/`
+  - `git diff --check`
+- Next step: push this branch, enable GitHub Pages with GitHub Actions, and test the public deployment URL.
+
+### GitHub Pages deployment verified
+- Public URL: https://scotty2hottyy.github.io/recipe_deck/
+- GitHub Pages deployment completed successfully.
+- Manual browser testing confirmed:
+  - Recipe Deck loads correctly.
+  - Manual recipes can be created and saved.
+  - Saved recipes persist after browser refresh.
+- URL importing may be blocked on the web by third-party recipe sites that do not permit CORS requests; Android/native behavior is unaffected.
