@@ -52,6 +52,17 @@ This history was reconstructed from Git commits and the earlier versions of this
 - Valid http/https URLs are trimmed and submitted into a local placeholder state that displays "Ready for import" and the submitted URL. No webpage fetching, parsing, recipe creation, or database write is performed yet.
 - Added widget coverage for entering a URL, empty URL rejection, invalid URL rejection, and valid URL placeholder submission.
 
+### #11 — Parse recipe data from webpage (completed in this session)
+- Implementation branch: `issue-11-recipe-parser`.
+- Added parser-only recipe extraction in `lib/services/recipe_parser_service.dart`.
+- Parser API: `RecipeParserService().parse(String webpageHtml)` returns `ParsedRecipeData?`, with nullable `title`, ordered `ingredients`, ordered `instructions`, and nullable `imageUrl`.
+- JSON-LD is preferred over fallback HTML. The parser supports direct Recipe objects, lists containing a Recipe, `@graph` entries, `@type: "Recipe"`, and `@type` lists containing Recipe.
+- Instruction parsing supports strings, lists of strings, HowToStep `text`, HowToSection `itemListElement`, nested sections/step lists, and ListItem-style `item` wrappers where reasonable.
+- Image extraction supports JSON-LD string URLs, lists where the first usable URL wins, and image objects with `url` or `contentUrl`; fallback microdata image extraction reads common `src`, `content`, or `href` attributes.
+- Missing recipe fields are represented safely as `null` or empty lists. Unsupported non-recipe HTML returns `null`. Malformed JSON-LD blocks are ignored so later JSON-LD blocks or fallback HTML can still parse.
+- Added focused parser tests with inline HTML fixtures only; no network calls, database writes, or UI flow changes.
+- Issue #10 webpage fetching is not present in this checkout/main: URL import still stops at the #9 placeholder state, and no fetch service/client is wired in locally.
+
 ### GitHub Actions CI and Android integration test (completed in this session)
 - Added workflow file `.github/workflows/flutter-ci.yml`.
 - The workflow runs on pushes and pull requests targeting `main`.
@@ -61,42 +72,39 @@ This history was reconstructed from Git commits and the earlier versions of this
 - Added the Flutter SDK `integration_test` dev dependency, which updated `pubspec.yaml` and `pubspec.lock`.
 
 ## Latest implementation and workflow context
-- Issues implemented in order: #4 saved recipe list, #5 manual entry, #6 editing, #7 deletion, #8 detail card, #9 URL input UI. GitHub Actions CI and one Android integration test are now also configured on the same branch.
-- Branch: `issue-9-url-input`.
+- Issues implemented in order: #4 saved recipe list, #5 manual entry, #6 editing, #7 deletion, #8 detail card, #9 URL input UI, and #11 parser-only recipe extraction. GitHub Actions CI and one Android integration test were already configured before #11.
+- Branch: `issue-11-recipe-parser`.
 - Working checkout: `/home/scott/Classes/CSC4330/recipe_deck`.
-- Current app state: manual recipe management remains backed by the existing SQLite service. URL import now has a UI entry point and validation-only placeholder submission, but it does not fetch, parse, preview, save, or mutate recipes. CI will validate analysis, tests, Android build, and the Android emulator integration path after the branch is pushed.
+- Current app state: manual recipe management remains backed by SQLite. URL import still has the #9 validation-only placeholder submission; #11 adds a raw-HTML parser service but does not fetch webpages, show previews, save parsed recipes, or mutate the URL import UI.
+- Issue #10 webpage fetching is absent from local `main`/this branch based on current files and branch history. There is no local network-fetch service for the parser to consume yet.
 - User requires a thorough change breakdown and a chance to demo before approving any commit. Do not merge to main.
 - Include this handoff in every commit.
 
 ## What changed
-- `.github/workflows/flutter-ci.yml`: new GitHub Actions workflow for pushes and pull requests to `main`, including pub get, analyze, tests, APK build, and Android emulator integration test execution.
-- `integration_test/app_test.dart`: new Flutter integration test for app launch, URL import navigation, invalid URL rejection, and valid placeholder submission.
-- `pubspec.yaml` / `pubspec.lock`: added the Flutter SDK `integration_test` dev dependency and its lockfile entries.
-- `lib/screens/recipe_url_import_screen.dart`: new URL import form with a recipe URL field, import button, http/https validation, empty/invalid validation messages, and local placeholder "Ready for import" state.
-- `lib/screens/recipe_list_screen.dart`: reads saved recipes from SQLite, displays ingredient/step counts, handles loading/empty/load-error states, passes full Recipe objects through navigation, and reloads after add/edit/delete.
-- `lib/screens/recipe_list_screen.dart`: adds URL import navigation from the app bar and the empty-state screen.
-- `lib/screens/add_recipe_screen.dart`: shared add/edit form with title, multiline ingredients, and multiline instructions. Required fields reject blank/whitespace-only values. Trims lines and skips blank lines, preserves order, prevents duplicate saves while pending, and retains input when saving fails. Editing keeps the existing id and source/image metadata.
-- `lib/screens/recipe_detail_screen.dart`: scrollable recipe card with title, ingredients, numbered instructions, optional source text, edit action, and confirmation before deletion. Updates immediately after editing; returns to refreshed list after deleting.
-- `lib/services/recipe_database_service.dart`: adds parameterized deletion by id. Uses the existing save/upsert behavior for edits; no database migration or dependency change.
-- `lib/main.dart`: accepts an optional database service for widget testing; production still uses the existing SQLite service.
-- `test/widget_test.dart`: covers manual-entry/validation, edit/detail/list refresh, delete/cancel, database-failure recovery, URL entry, empty URL rejection, invalid URL rejection, and valid URL placeholder submission.
-- `test/recipe_database_service_test.dart`: verifies edits and deletes survive database reopening and leave other recipes intact.
+- `lib/services/recipe_parser_service.dart`: new parser service and `ParsedRecipeData` result model. JSON-LD Recipe data is parsed first, then lightweight itemprop HTML fallback is attempted only when no usable JSON-LD Recipe is found.
+- `test/recipe_parser_service_test.dart`: new focused tests using inline HTML fixtures for direct JSON-LD, `@graph`, HowToStep, HowToSection/nested instructions, missing fields, malformed JSON-LD, unsupported pages, fallback HTML, and JSON-LD priority.
+- `pubspec.yaml` / `pubspec.lock`: added the `html` package for DOM parsing; lockfile also includes its `csslib` transitive dependency.
+- `AI_HANDOFF.md`: updated for Issue #11 status, parser behavior, files changed, validation, and next task context.
+- No URL import UI, networking, SQLite behavior, or GitHub Actions files were changed for Issue #11.
 
-## Follow-up fixes
-- Widget test fake now supplies the FFI database factory explicitly, avoiding uninitialized platform state.
-- Fixed the list reload callback to return void from setState instead of returning the database Future.
-- Form tests scroll the outer list to the Save button before tapping.
+## Parser behavior
+- `RecipeParserService().parse(String webpageHtml)` returns `ParsedRecipeData?`.
+- JSON-LD supported shapes: Recipe object directly, list containing a Recipe, nested Recipe object such as inside `@graph`, `@type` equal to `Recipe`, and `@type` list containing `Recipe`.
+- Extracts `name` to `title`, `recipeIngredient` to trimmed nonblank ingredients, `recipeInstructions` to trimmed nonblank instructions, and common JSON-LD image URL shapes to `imageUrl`.
+- Instruction support includes string, list of strings, HowToStep `text`, HowToSection `itemListElement`, nested sections/steps, and ListItem-style `item` wrappers where reasonable.
+- Fallback support, used only without a usable JSON-LD Recipe: title from itemprop `name`, `h1`, or document `title`; ingredients from itemprop `recipeIngredient`; instructions from itemprop `recipeInstructions`; image from itemprop `image` when a usable URL is readily available.
+- Graceful failure: unsupported/non-recipe HTML returns `null`; malformed JSON-LD is skipped; missing title/image become `null`; missing ingredient/instruction fields become empty lists.
 
 ## Validation
-- Latest CI/integration-test validation:
-  - `flutter analyze`: passed, no issues.
-  - `flutter test`: passed, all 18 existing unit/widget tests.
-  - `flutter build apk`: passed, built `build/app/outputs/flutter-apk/app-release.apk`.
+- Issue #11 parser-only targeted validation:
+  - `flutter test test/recipe_parser_service_test.dart`: passed, all 11 parser tests.
+- Full latest Issue #11 validation:
+  - `flutter pub get`: passed.
+  - `dart format .`: passed; formatted the new parser service and parser test file.
+  - `flutter analyze`: passed, no issues found.
+  - `flutter test`: passed, all 29 tests.
   - `git diff --check`: passed.
-- Latest Issue #9 validation:
-  - `flutter analyze`: passed, no issues.
-  - `flutter test`: passed, all 18 tests.
-  - `git diff --check`: passed.
+- Previous #9 validation passed with `flutter analyze`, `flutter test` across 18 tests, and `git diff --check`.
 - Previous #4–#8 validation passed in Android Studio with all 14 tests passing at that time.
 
 ## GitHub CI notes
@@ -110,7 +118,7 @@ This history was reconstructed from Git commits and the earlier versions of this
 ## Current limitations / next work
 - Runtime persistence uses the existing sqflite Android/iOS/macOS implementation; Chrome persistence is not configured. Use the Android emulator for this demo.
 - No hard-coded sample recipes are inserted. A fresh database displays an empty state.
-- URL import does not fetch webpage content yet. It only captures and validates a URL, then stores the submitted URL in transient screen state.
-- Issue #10 should connect the valid submitted URL from `RecipeUrlImportScreen` to the actual webpage-fetching/parsing flow, then decide how parsed recipes are previewed and saved through the existing `RecipeDatabaseService`.
+- URL import does not fetch webpage content yet in this checkout. It only captures and validates a URL, then stores the submitted URL in transient screen state.
+- Next likely task should be Issue #12: connect fetched HTML -> parser -> preview/save flow, once the Issue #10 fetching work is available locally or merged.
 - After pushing this branch, open or update a pull request targeting `main` to trigger the new CI workflow on GitHub.
 - Search/filtering and broader polish remain future issues.
