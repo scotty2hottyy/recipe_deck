@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -10,14 +11,43 @@ import 'services/recipe_database_service.dart';
 import 'services/recipe_page_service.dart';
 
 void main() {
-  if (kIsWeb) {
-    databaseFactory = databaseFactoryFfiWeb;
-  } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
-  }
+  // Widget build/layout errors show a plain message instead of the default
+  // red error screen, so an unexpected UI error does not look like a crash.
+  ErrorWidget.builder = (details) => const ColoredBox(
+    color: Colors.white,
+    child: Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Text(
+          'Something went wrong displaying this screen.',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    ),
+  );
 
-  runApp(const RecipeDeckApp());
+  runZonedGuarded(
+    () {
+      if (kIsWeb) {
+        databaseFactory = databaseFactoryFfiWeb;
+      } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        sqfliteFfiInit();
+        databaseFactory = databaseFactoryFfi;
+      }
+
+      FlutterError.onError = (details) {
+        FlutterError.presentError(details);
+        debugPrint('Unhandled Flutter error: ${details.exceptionAsString()}');
+      };
+
+      runApp(const RecipeDeckApp());
+    },
+    (error, stack) {
+      // Catches errors outside the Flutter widget tree (e.g. async/database
+      // failures) so they are logged instead of crashing the app silently.
+      debugPrint('Unhandled error: $error');
+    },
+  );
 }
 
 class RecipeDeckApp extends StatelessWidget {
