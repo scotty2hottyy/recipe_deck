@@ -131,12 +131,6 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
                       icon: const Icon(Icons.add),
                       label: const Text('Add Recipe'),
                     ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: _importRecipeUrl,
-                      icon: const Icon(Icons.link),
-                      label: const Text('Import from URL'),
-                    ),
                   ],
                 ),
               ),
