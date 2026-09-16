@@ -4,9 +4,11 @@ import 'package:integration_test/integration_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:recipe_deck/main.dart';
 import 'package:recipe_deck/services/recipe_page_service.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  databaseFactory = databaseFactoryFfi;
 
   testWidgets('opens URL import and validates placeholder flow', (
     tester,
@@ -38,6 +40,8 @@ void main() {
     expect(find.text('Enter a valid http or https URL.'), findsOneWidget);
 
     const url = 'https://example.com/recipes/chili';
+    await tester.tap(find.byKey(const Key('recipeUrlField')));
+    await tester.pump();
     await tester.enterText(find.byKey(const Key('recipeUrlField')), url);
     await tester.tap(find.byKey(const Key('importRecipeUrlButton')));
     await tester.pumpAndSettle();

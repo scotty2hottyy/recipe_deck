@@ -24,6 +24,8 @@ class RecipeListScreen extends StatefulWidget {
 class _RecipeListScreenState extends State<RecipeListScreen> {
   late final RecipeDatabaseService _database;
   late Future<List<Recipe>> _recipes;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -36,6 +38,12 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
     setState(() {
       _recipes = _database.getAllRecipes();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _openRecipe(Recipe recipe) async {
@@ -136,31 +144,73 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
               ),
             );
           }
+          final normalizedQuery = _searchQuery.trim().toLowerCase();
+          final filteredRecipes = normalizedQuery.isEmpty
+              ? recipes
+              : recipes
+                    .where(
+                      (recipe) =>
+                          recipe.title.toLowerCase().contains(normalizedQuery),
+                    )
+                    .toList();
           return Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 800),
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-                itemCount: recipes.length,
-                itemBuilder: (context, index) {
-                  final recipe = recipes[index];
-                  return Card(
-                    child: ListTile(
-                      key: ValueKey(recipe.id),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 8,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: TextField(
+                      key: const Key('recipeSearchField'),
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() => _searchQuery = value);
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Search recipes',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchQuery.isEmpty
+                            ? null
+                            : IconButton(
+                                key: const Key('clearRecipeSearchButton'),
+                                tooltip: 'Clear search',
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                                icon: const Icon(Icons.clear),
+                              ),
                       ),
-                      leading: const Icon(Icons.restaurant_menu),
-                      title: Text(recipe.title),
-                      subtitle: Text(
-                        '${recipe.ingredients.length} ingredients · ${recipe.instructions.length} steps',
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => _openRecipe(recipe),
                     ),
-                  );
-                },
+                  ),
+                  Expanded(
+                    child: filteredRecipes.isEmpty
+                        ? const Center(child: Text('No matching recipes.'))
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                            itemCount: filteredRecipes.length,
+                            itemBuilder: (context, index) {
+                              final recipe = filteredRecipes[index];
+                              return Card(
+                                child: ListTile(
+                                  key: ValueKey(recipe.id),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 8,
+                                  ),
+                                  leading: const Icon(Icons.restaurant_menu),
+                                  title: Text(recipe.title),
+                                  subtitle: Text(
+                                    '${recipe.ingredients.length} ingredients · ${recipe.instructions.length} steps',
+                                  ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => _openRecipe(recipe),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
             ),
           );

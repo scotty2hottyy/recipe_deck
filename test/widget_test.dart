@@ -68,6 +68,36 @@ Future<void> openUrlImport(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('saved recipes filter by title and restore when cleared', (
+    tester,
+  ) async {
+    final database = MemoryRecipeDatabase()
+      ..recipes[sampleRecipe.id] = sampleRecipe
+      ..recipes['chili'] = const Recipe(
+        id: 'chili',
+        title: 'Weeknight Chili',
+        ingredients: ['Beans'],
+        instructions: ['Simmer'],
+      );
+    await tester.pumpWidget(RecipeDeckApp(databaseService: database));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pancakes'), findsOneWidget);
+    expect(find.text('Weeknight Chili'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('recipeSearchField')), 'CHILI');
+    await tester.pump();
+
+    expect(find.text('Weeknight Chili'), findsOneWidget);
+    expect(find.text('Pancakes'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('clearRecipeSearchButton')));
+    await tester.pump();
+
+    expect(find.text('Pancakes'), findsOneWidget);
+    expect(find.text('Weeknight Chili'), findsOneWidget);
+  });
+
   testWidgets('manual entry validates, trims lines, saves and opens detail', (
     tester,
   ) async {
