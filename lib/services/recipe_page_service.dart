@@ -5,6 +5,7 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
 import '../models/recipe.dart';
+import 'recipe_text.dart';
 
 /// This function describes the one network operation that the importer needs.
 ///
@@ -135,13 +136,16 @@ class RecipePageParser {
   }
 
   String? _readString(dynamic value) {
-    if (value is String && value.trim().isNotEmpty) return value.trim();
+    if (value is String) {
+      final text = cleanRecipeText(value);
+      if (text.isNotEmpty) return text;
+    }
     return null;
   }
 
   List<String> _readStringList(dynamic value) {
     if (value is String) {
-      final text = value.trim();
+      final text = cleanRecipeText(value);
       return text.isEmpty ? [] : [text];
     }
     if (value is! List) return [];
@@ -168,8 +172,8 @@ class RecipePageParser {
   }
 
   String? _readImageUrl(dynamic value) {
-    if (value is String) return _readString(value);
-    if (value is Map) return _readString(value['url']);
+    if (value is String) return value.trim().isEmpty ? null : value.trim();
+    if (value is Map) return _readImageUrl(value['url']);
     if (value is List && value.isNotEmpty) return _readImageUrl(value.first);
     return null;
   }

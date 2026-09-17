@@ -56,10 +56,11 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
     if (mounted) _reload();
   }
 
-  Future<void> _addRecipe() async {
+  Future<void> _addRecipe({Recipe? importedRecipe}) async {
     final saved = await Navigator.of(context).push<Recipe>(
       MaterialPageRoute(
         builder: (_) => AddRecipeScreen(
+          importedRecipe: importedRecipe,
           databaseService: _database,
           recipePageService: widget.recipePageService,
         ),
@@ -69,12 +70,14 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
   }
 
   Future<void> _importRecipeUrl() async {
-    await Navigator.of(context).push<void>(
+    final imported = await Navigator.of(context).push<Recipe>(
       MaterialPageRoute(
         builder: (_) =>
             RecipeUrlImportScreen(pageService: widget.recipePageService),
       ),
     );
+    if (!mounted || imported == null) return;
+    await _addRecipe(importedRecipe: imported);
   }
 
   @override

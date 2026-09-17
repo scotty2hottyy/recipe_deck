@@ -320,6 +320,82 @@ void main() {
     expect(database.recipes, isEmpty);
   });
 
+  testWidgets(
+    'toolbar import opens a new draft, saves and refreshes the list',
+    (tester) async {
+      const url = 'https://example.com/chili';
+      const pageText = '''
+      <script type="application/ld+json">
+        {"@type":"Recipe","name":"Imported Chili",
+         "recipeIngredient":["1 &#8211; 2 cups beans"],
+         "recipeInstructions":["Simmer"],
+         "image":"https://example.com/chili.jpg"}
+      </script>
+    ''';
+      final database = MemoryRecipeDatabase();
+      await tester.pumpWidget(
+        RecipeDeckApp(
+          databaseService: database,
+          recipePageService: RecipePageService(
+            request: (_) async => http.Response(pageText, 200),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      Future<void> importDraft() async {
+        await openUrlImport(tester);
+        await tester.enterText(find.byKey(const Key('recipeUrlField')), url);
+        await tester.tap(find.byKey(const Key('importRecipeUrlButton')));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(
+          find.byKey(const Key('useImportedRecipeButton')),
+        );
+        await tester.tap(find.byKey(const Key('useImportedRecipeButton')));
+        await tester.pumpAndSettle();
+        expect(find.text('Add Recipe'), findsOneWidget);
+        expect(find.text('Imported Chili'), findsOneWidget);
+        expect(find.text('1 – 2 cups beans'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+
+      await importDraft();
+      expect(database.recipes, isEmpty);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(database.recipes, isEmpty);
+
+      await importDraft();
+      await saveForm(tester);
+      expect(find.text('Recipe Deck'), findsOneWidget);
+      expect(find.text('Imported Chili'), findsOneWidget);
+      final first = database.recipes.values.single;
+      expect(first.sourceUrl, url);
+      expect(first.imageUrl, 'https://example.com/chili.jpg');
+      expect(first.instructions, ['Simmer']);
+      expect(first.id, isNot(url.hashCode.toRadixString(16)));
+
+      await importDraft();
+      await saveForm(tester);
+      expect(database.recipes, hasLength(2));
+      expect(database.recipes[first.id], same(first));
+    },
+  );
+
+  testWidgets('cancelling toolbar URL entry returns without an add form', (
+    tester,
+  ) async {
+    final database = MemoryRecipeDatabase();
+    await tester.pumpWidget(RecipeDeckApp(databaseService: database));
+    await tester.pumpAndSettle();
+    await openUrlImport(tester);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Recipe Deck'), findsOneWidget);
+    expect(find.byKey(const Key('recipeTitleField')), findsNothing);
+    expect(database.recipes, isEmpty);
+  });
+
   testWidgets('recipe URL import rejects empty input', (tester) async {
     final database = MemoryRecipeDatabase();
     await tester.pumpWidget(RecipeDeckApp(databaseService: database));

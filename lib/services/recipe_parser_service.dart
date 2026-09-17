@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html_parser;
 
+import 'recipe_text.dart';
+
 class ParsedRecipeData {
   const ParsedRecipeData({
     this.title,
@@ -237,7 +239,7 @@ class RecipeParserService {
   List<String> _cleanTextEntries(String value) {
     return value
         .split(RegExp(r'[\r\n]+'))
-        .map(_cleanText)
+        .map(cleanRecipeText)
         .where((entry) => entry.isNotEmpty)
         .toList();
   }
@@ -345,7 +347,11 @@ class RecipeParserService {
           .toList();
     }
 
-    return _cleanTextEntries(element.text);
+    return element.text
+        .split(RegExp(r'[\r\n]+'))
+        .map(_cleanText)
+        .where((entry) => entry.isNotEmpty)
+        .toList();
   }
 
   String? _firstElementText(Iterable<Element> elements) {

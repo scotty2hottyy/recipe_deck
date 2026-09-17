@@ -1,5 +1,22 @@
 # AI Handoff
 
+## Latest session — imported recipe text cleanup and toolbar import fix (2026-09-17)
+- Working branch: `fix/recipe-text-cleanup`, based on latest fetched `origin/main` at `bb4a184`; main is unchanged.
+- Checkout: `/Users/willi/Documents/Codex/2026-09-10/hey/work/recipe_deck`. Android Studio was open to the separate Desktop checkout; open this working checkout to demo the changes.
+- Added shared `cleanRecipeText` using the existing `html` dependency to decode HTML entities, remove markup/script/style content, and normalize whitespace in imported titles, ingredients, and instructions.
+- Both JSON-LD parsers use the helper. HTML fallback text is already decoded by the document parser and is not interpreted as HTML a second time. Image URLs remain metadata, not display text.
+- Preserves quantities, ranges, fractions, preparation details, and contextual notes. No new packages, backend, AI service, database migration, or automatic changes to saved recipes.
+- Reimport a recipe to see cleaned text; previously saved imports retain their stored content.
+- Added regression coverage for the sourdough ingredient strings from the user's screenshot, both parser paths, entities, markup, whitespace, and literal angle brackets in fallback text.
+- Fixed toolbar URL import: the list screen previously discarded the returned Recipe via a void route. It now receives it and opens Add Recipe with imported draft values, then refreshes the list after Save Recipe.
+- Added `importedRecipe` initial values separately from the existing edit `recipe` parameter, so imports receive fresh IDs while edits preserve identity. Source/image metadata are retained. Cancelling either URL entry or the draft saves nothing.
+- Clear the retrieval snackbar when selecting Use This Recipe so it does not cover the Save button on the next screen.
+- Added widget regression coverage for toolbar import, cleaned ingredient handoff, save/list refresh, metadata, cancellation, and repeated imports without overwriting previous saves.
+- Validation: `flutter analyze` passed with no issues; `flutter test` passed all 40 tests; `git diff --check` passed. Used the documented CLI checks because Android Studio project selection automation did not respond reliably. User reviewed the updated build and approved committing and pushing the branch.
+- User authorized publication on this branch and will handle the merge to main. Commit identity: williamfaulk04-blip <229149239+williamfaulk04-blip@users.noreply.github.com>. Future changes still require review/demo approval before committing; include this handoff with each commit.
+- Historical sections below preserve earlier milestones and may describe superseded branch state. Current main also includes search and global error handling (PRs #33 and #34); the later #31 section records web persistence support.
+
+
 ## Project purpose
 Recipe Deck is a Flutter app for keeping recipes locally as clean recipe cards. Manual recipe management is implemented, and the `feature/recipe-url-import` branch connects recipe URL import far enough for a user to fetch a page, review parsed data, place it into the Add Recipe form, and save normally.
 

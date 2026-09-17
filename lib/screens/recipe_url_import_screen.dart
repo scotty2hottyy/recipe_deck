@@ -188,8 +188,11 @@ class _RecipeUrlImportScreenState extends State<RecipeUrlImportScreen> {
                             const SizedBox(height: 16),
                             FilledButton.icon(
                               key: const Key('useImportedRecipeButton'),
-                              onPressed: () =>
-                                  Navigator.of(context).pop(_parsedRecipe),
+                              onPressed: () {
+                                ScaffoldMessenger.of(context)
+                                    .removeCurrentSnackBar();
+                                Navigator.of(context).pop(_parsedRecipe);
+                              },
                               icon: const Icon(Icons.check),
                               label: const Text('Use This Recipe'),
                             ),
