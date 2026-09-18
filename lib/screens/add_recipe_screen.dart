@@ -14,11 +14,15 @@ class AddRecipeScreen extends StatefulWidget {
     required this.databaseService,
     this.recipePageService,
     this.recipe,
+    this.importedRecipe,
   });
 
   final RecipeDatabaseService databaseService;
   final RecipePageService? recipePageService;
   final Recipe? recipe;
+
+  /// Initial values for a new import; unlike [recipe], this does not reuse its ID.
+  final Recipe? importedRecipe;
 
   @override
   State<AddRecipeScreen> createState() => _AddRecipeScreenState();
@@ -37,15 +41,16 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   @override
   void initState() {
     super.initState();
-    _title = TextEditingController(text: widget.recipe?.title ?? '');
+    final initial = widget.recipe ?? widget.importedRecipe;
+    _title = TextEditingController(text: initial?.title ?? '');
     _ingredients = TextEditingController(
-      text: widget.recipe?.ingredients.join('\n') ?? '',
+      text: initial?.ingredients.join('\n') ?? '',
     );
     _instructions = TextEditingController(
-      text: widget.recipe?.instructions.join('\n') ?? '',
+      text: initial?.instructions.join('\n') ?? '',
     );
-    _sourceUrl = widget.recipe?.sourceUrl;
-    _imageUrl = widget.recipe?.imageUrl;
+    _sourceUrl = initial?.sourceUrl;
+    _imageUrl = initial?.imageUrl;
   }
 
   @override
